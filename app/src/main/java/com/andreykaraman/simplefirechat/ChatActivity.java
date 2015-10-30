@@ -1,9 +1,12 @@
 package com.andreykaraman.simplefirechat;
 
+import android.content.CursorLoader;
 import android.content.Intent;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.design.widget.FloatingActionButton;
@@ -24,6 +27,7 @@ import com.firebase.client.Firebase;
 import com.firebase.ui.FirebaseListAdapter;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,7 +43,7 @@ public class ChatActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Firebase.setAndroidContext(this);
-        myFirebaseRef= new Firebase(getString(R.string.firebase_url));
+        myFirebaseRef = new Firebase(getString(R.string.firebase_url));
 
         Map config = new HashMap();
         config.put("cloud_name", getString(R.string.cloudinary_cloud_name));
@@ -67,10 +71,10 @@ public class ChatActivity extends AppCompatActivity {
                 R.layout.list_item_image, myFirebaseRef) {
             @Override
             protected void populateView(View v, ChatMessage model) {
-                ((TextView)v.findViewById(R.id.nameText)).setText(model.getName());
-                ((TextView)v.findViewById(R.id.text)).setText(model.getText());
-                ImageView image = ((ImageView)v.findViewById(R.id.image));
-                if (!TextUtils.isEmpty(model.getImageUrl())){
+                ((TextView) v.findViewById(R.id.nameText)).setText(model.getName());
+                ((TextView) v.findViewById(R.id.text)).setText(model.getText());
+                ImageView image = ((ImageView) v.findViewById(R.id.image));
+                if (!TextUtils.isEmpty(model.getImageUrl())) {
                     byte[] imageAsBytes = Base64.decode(model.getImageUrl(), Base64.DEFAULT);
 
                     Bitmap bmp = BitmapFactory.decodeByteArray(imageAsBytes, 0, imageAsBytes.length);
@@ -108,7 +112,7 @@ public class ChatActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    private void getPictureFromGallery(){
+    private void getPictureFromGallery() {
         Intent intent = new Intent();
         intent.setType("image/*");
         intent.setAction(Intent.ACTION_GET_CONTENT);
@@ -121,34 +125,73 @@ public class ChatActivity extends AppCompatActivity {
             if (requestCode == 1) {
                 Uri selectedImageUri = data.getData();
 
-
-                Bitmap bm = null;
-                String encodedImage = "";
-                try {
-                    bm = MediaStore.Images.Media.getBitmap(this.getContentResolver(), selectedImageUri);
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    bm.compress(Bitmap.CompressFormat.JPEG, 80, baos); //bm is the bitmap object
-                    byte[] b = baos.toByteArray();
-
-                    encodedImage = Base64.encodeToString(b, Base64.DEFAULT);
-
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
-//                String text = textEdit.getText().toString();
-                Map<String,Object> values = new HashMap<>();
-                values.put("name", "Android User");
-                values.put("text", "Test text");
-                values.put("imageUrl", encodedImage);
-
-                myFirebaseRef.push().setValue(values);
+                Upload upload = new Upload();
+                upload.execute(getPath(selectedImageUri));
+//                Bitmap bm = null;
+//                String encodedImage = "";
+//                try {
+//                    bm = MediaStore.Images.Media.getBitmap(this.getContentResolver(), selectedImageUri);
+//                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+//                    bm.compress(Bitmap.CompressFormat.JPEG, 80, baos); //bm is the bitmap object
+//                    byte[] b = baos.toByteArray();
+//
+//                    encodedImage = Base64.encodeToString(b, Base64.DEFAULT);
+//
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                }
+//
+////                String text = textEdit.getText().toString();
+//                Map<String,Object> values = new HashMap<>();
+//                values.put("name", "Android User");
+//                values.put("text", "Test text");
+//                values.put("imageUrl", encodedImage);
+//
+//                myFirebaseRef.push().setValue(values);
             }
         }
     }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
         mListAdapter.cleanup();
+    }
+
+    private class Upload extends AsyncTask<String, Void, String> {
+
+        @Override
+        protected String doInBackground(String... urls) {
+            Map response;
+
+            File file = new File(urls[0]);
+
+            try {
+                response = cloudinary.uploader().upload(file, null);
+
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+            return "";
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+
+        }
+    }
+
+    public String getPath(Uri uri) {
+        String data = MediaStore.MediaColumns.DATA;
+        String[] proj = {data};
+        Cursor cursor = new CursorLoader(this, uri, proj, null, null,
+                null).loadInBackground();
+        int column_index = cursor.getColumnIndexOrThrow(data);
+        cursor.moveToFirst();
+        if (cursor.getCount() > 0)
+            return cursor.getString(column_index);
+        else
+            return "";
     }
 }
