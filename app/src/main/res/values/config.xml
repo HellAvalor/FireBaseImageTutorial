@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+
+    <!--Change to your own keys and links-->
+
     <string name="firebase_url">https://fire-chat-app.firebaseio.com/</string>
-    <string name="cloudinary_url"></string>
+    <string name="cloudinary_url">cloudinary://278135325728928:2QTtMkx6ixWn7ISG6ZMACO_9XT8@akaraman</string>
     <string name="cloudinary_cloud_name">akaraman</string>
     <string name="cloudinary_api_key">278135325728928</string>
-    <string name="cloudinary_api_secret"></string>
-
+    <string name="cloudinary_api_secret">2QTtMkx6ixWn7ISG6ZMACO_9XT8</string>
 </resources>
