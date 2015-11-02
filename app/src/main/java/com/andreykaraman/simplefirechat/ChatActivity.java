@@ -1,15 +1,13 @@
 package com.andreykaraman.simplefirechat;
 
-import android.content.CursorLoader;
+import android.app.AlertDialog;
+import android.app.ProgressDialog;
 import android.content.Intent;
-import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.provider.MediaStore;
-import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
@@ -17,16 +15,20 @@ import android.util.Base64;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.andreykaraman.simplefirechat.model.ChatMessage;
 import com.cloudinary.Cloudinary;
+import com.cloudinary.Transformation;
+import com.cloudinary.utils.ObjectUtils;
 import com.firebase.client.Firebase;
 import com.firebase.ui.FirebaseListAdapter;
+import com.squareup.picasso.Picasso;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
@@ -36,8 +38,13 @@ public class ChatActivity extends AppCompatActivity {
 
     private FirebaseListAdapter mListAdapter;
     private ListView listView;
+    private EditText inputField;
+    private ImageView addPhoto;
+    private ImageView sendMessage;
     private Firebase myFirebaseRef;
     private Cloudinary cloudinary;
+    private String innerUrl;
+    private ProgressDialog progress;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,13 +64,22 @@ public class ChatActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
+
+        inputField = (EditText) findViewById(R.id.input_field);
+
+        addPhoto = (ImageView) findViewById(R.id.add_picture);
+        addPhoto.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View view) {
+            public void onClick(View v) {
                 getPictureFromGallery();
-//                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-//                        .setAction("Action", null).show();
+            }
+        });
+
+        sendMessage = (ImageView) findViewById(R.id.send_message);
+        sendMessage.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                tryUploadImageAndSendMessage();
             }
         });
 
@@ -75,19 +91,42 @@ public class ChatActivity extends AppCompatActivity {
                 ((TextView) v.findViewById(R.id.text)).setText(model.getText());
                 ImageView image = ((ImageView) v.findViewById(R.id.image));
                 if (!TextUtils.isEmpty(model.getImageUrl())) {
-                    byte[] imageAsBytes = Base64.decode(model.getImageUrl(), Base64.DEFAULT);
-
-                    Bitmap bmp = BitmapFactory.decodeByteArray(imageAsBytes, 0, imageAsBytes.length);
                     image.setVisibility(View.VISIBLE);
-                    image.setImageBitmap(bmp);
-//                    Picasso.with(getApplicationContext()).load(bmp).into(image);
+                    Picasso.with(getApplicationContext()).load(model.getImageUrl()).into(image);
                 } else {
                     image.setVisibility(View.GONE);
                 }
             }
         };
-
         listView.setAdapter(mListAdapter);
+
+        progress = new ProgressDialog(this);
+        progress.setIndeterminate(true);
+        progress.setCancelable(false);
+        progress.setMessage("Image loading");
+    }
+
+    private void tryUploadImageAndSendMessage() {
+        if (!TextUtils.isEmpty(innerUrl)) {
+            Upload upload = new Upload();
+            upload.execute(innerUrl);
+        } else
+            sendMessage();
+    }
+
+    private void sendMessage() {
+
+        String text = inputField.getText().toString();
+        Map<String, Object> values = new HashMap<>();
+        values.put("name", "User name");
+        values.put("text", text);
+        values.put("imageUrl", innerUrl);
+
+        myFirebaseRef.push().setValue(values);
+        inputField.setText("");
+        innerUrl = "";
+
+        Toast.makeText(this, "Message sent", Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -124,30 +163,7 @@ public class ChatActivity extends AppCompatActivity {
         if (resultCode == RESULT_OK) {
             if (requestCode == 1) {
                 Uri selectedImageUri = data.getData();
-
-                Upload upload = new Upload();
-                upload.execute(getPath(selectedImageUri));
-//                Bitmap bm = null;
-//                String encodedImage = "";
-//                try {
-//                    bm = MediaStore.Images.Media.getBitmap(this.getContentResolver(), selectedImageUri);
-//                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-//                    bm.compress(Bitmap.CompressFormat.JPEG, 80, baos); //bm is the bitmap object
-//                    byte[] b = baos.toByteArray();
-//
-//                    encodedImage = Base64.encodeToString(b, Base64.DEFAULT);
-//
-//                } catch (IOException e) {
-//                    e.printStackTrace();
-//                }
-//
-////                String text = textEdit.getText().toString();
-//                Map<String,Object> values = new HashMap<>();
-//                values.put("name", "Android User");
-//                values.put("text", "Test text");
-//                values.put("imageUrl", encodedImage);
-//
-//                myFirebaseRef.push().setValue(values);
+                innerUrl = Utils.getPath(this, selectedImageUri);
             }
         }
     }
@@ -161,37 +177,34 @@ public class ChatActivity extends AppCompatActivity {
     private class Upload extends AsyncTask<String, Void, String> {
 
         @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            progress.show();
+        }
+
+        @Override
         protected String doInBackground(String... urls) {
             Map response;
-
+            String imageUrl = "";
             File file = new File(urls[0]);
 
             try {
-                response = cloudinary.uploader().upload(file, null);
-
+                response = cloudinary.uploader().upload(file, ObjectUtils.asMap(
+                        "transformation", new Transformation().crop("limit").width(800)));
+                if (response!=null)
+                    imageUrl = response.get("url").toString();
             } catch (IOException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
             }
-            return "";
+            return imageUrl;
         }
 
         @Override
         protected void onPostExecute(String result) {
-
+            innerUrl = result;
+            progress.dismiss();
+            sendMessage();
         }
-    }
-
-    public String getPath(Uri uri) {
-        String data = MediaStore.MediaColumns.DATA;
-        String[] proj = {data};
-        Cursor cursor = new CursorLoader(this, uri, proj, null, null,
-                null).loadInBackground();
-        int column_index = cursor.getColumnIndexOrThrow(data);
-        cursor.moveToFirst();
-        if (cursor.getCount() > 0)
-            return cursor.getString(column_index);
-        else
-            return "";
     }
 }

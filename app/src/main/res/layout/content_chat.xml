@@ -1,16 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent"
-    android:layout_height="match_parent" android:paddingLeft="@dimen/activity_horizontal_margin"
-    android:paddingRight="@dimen/activity_horizontal_margin"
-    android:paddingTop="@dimen/activity_vertical_margin"
-    android:paddingBottom="@dimen/activity_vertical_margin"
-    app:layout_behavior="@string/appbar_scrolling_view_behavior"
-    tools:showIn="@layout/activity_chat" tools:context=".ChatActivity">
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:showIn="@layout/activity_chat"
+    tools:context=".ChatActivity">
 
     <ListView
+        android:paddingLeft="@dimen/activity_horizontal_margin"
+        android:paddingRight="@dimen/activity_horizontal_margin"
         android:id="@+id/list_view"
-        android:layout_height="match_parent"
-        android:layout_width="match_parent"/>
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:layout_above="@+id/linearLayout" />
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/linearLayout"
+        android:gravity="center"
+        android:layout_margin="5dp"
+        android:layout_alignParentBottom="true">
+
+        <EditText
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:id="@+id/input_field" />
+
+        <ImageView
+            android:id="@+id/add_picture"
+            android:layout_margin="3dp"
+            android:layout_width="32dp"
+            android:layout_height="36dp"
+            android:src="@drawable/ic_image_camera_alt"/>
+
+        <ImageView
+            android:id="@+id/send_message"
+            android:layout_margin="5dp"
+            android:layout_width="32dp"
+            android:layout_height="36dp"
+            android:src="@drawable/ic_content_send"/>
+    </LinearLayout>
+
 </RelativeLayout>
